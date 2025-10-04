@@ -1,40 +1,36 @@
-// 📁 utils/sheetLogger.js
 import { google } from 'googleapis';
 
-// Autenticação com JWT usando variáveis de ambiente
-const auth = new google.auth.JWT(
-  process.env.GOOGLE_CLIENT_EMAIL,
-  null,
-  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  ['https://www.googleapis.com/auth/spreadsheets']
-);
+// Função principal para registrar dados no Google Sheets
+async function registrarAtendimento(nome, mensagem) {
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      type: 'service_account',
+      project_id: process.env.GOOGLE_PROJECT_ID,
+      private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+    },
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
 
-const sheets = google.sheets({ version: 'v4', auth });
+  const sheets = google.sheets({ version: 'v4', auth });
 
-export async function registrarNaPlanilha({
-  spreadsheetId,
-  dados
-}) {
-  try {
-    const valores = [[
-      new Date().toISOString(), // Timestamp
-      dados.canal || '',
-      dados.identificador || '',
-      dados.nome || '',
-      dados.mensagem || '',
-      dados.resposta || '',
-      dados.thread || '',
-      dados.observacoes || ''
-    ]];
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const range = 'Atendimentos!A:C'; // Ajuste conforme sua aba
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'Historico!A1',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: valores }
-    });
-  } catch (error) {
-    console.error('Erro ao registrar na planilha:', error);
-    throw error;
-  }
+  const timestamp = new Date().toISOString();
+
+  const values = [[timestamp, nome, mensagem]];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values,
+    },
+  });
 }
+
+export { registrarAtendimento };
