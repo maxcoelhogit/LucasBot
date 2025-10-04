@@ -22,7 +22,6 @@ export default async function handler(req, res) {
   let threadId = getThreadId(userNumber);
 
   try {
-    // Cria nova thread se não existir
     if (!threadId) {
       const threadResp = await axios.post(
         'https://api.openai.com/v1/threads',
@@ -38,7 +37,6 @@ export default async function handler(req, res) {
       setThreadId(userNumber, threadId);
     }
 
-    // Envia mensagem do usuário para a thread
     await axios.post(
       `https://api.openai.com/v1/threads/${threadId}/messages`,
       { role: 'user', content: userMessage },
@@ -50,7 +48,6 @@ export default async function handler(req, res) {
       }
     );
 
-    // Executa o assistente
     const runResp = await axios.post(
       `https://api.openai.com/v1/threads/${threadId}/runs`,
       { assistant_id: assistantId },
@@ -62,7 +59,6 @@ export default async function handler(req, res) {
       }
     );
 
-    // Aguarda finalização da execução
     let completed = false;
     let runData;
     while (!completed) {
@@ -79,7 +75,6 @@ export default async function handler(req, res) {
       if (runData.data.status === 'completed') completed = true;
     }
 
-    // Busca a resposta gerada
     const msgResp = await axios.get(
       `https://api.openai.com/v1/threads/${threadId}/messages`,
       {
@@ -94,18 +89,17 @@ export default async function handler(req, res) {
     const lastMessage = messages.find((m) => m.role === 'assistant');
     const reply = lastMessage?.content[0]?.text?.value || 'Desculpe, não consegui responder no momento.';
 
-    // Envia a resposta pelo WhatsApp via Twilio
     await client.messages.create({
       from: ourNumber,
       to: userNumber,
       body: reply
     });
 
-    // Registra na planilha
+    // ✅ Novo registro com API Key
     await registrarAtendimento({
       canal: 'WhatsApp',
       identificador: userNumber,
-      nome: '', // Pode ser ajustado para extrair nome futuramente
+      nome: '', // Pode ser melhorado depois
       mensagemRecebida: userMessage,
       respostaEnviada: reply,
       threadId,
