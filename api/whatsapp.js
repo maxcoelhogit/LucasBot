@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   let threadId = getThreadId(userNumber);
 
   try {
-    // Cria uma nova thread se ainda não existir
+    // Cria nova thread se não existir
     if (!threadId) {
       const threadResp = await axios.post(
         'https://api.openai.com/v1/threads',
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       setThreadId(userNumber, threadId);
     }
 
-    // Envia a mensagem do usuário para a thread
+    // Envia mensagem do usuário para a thread
     await axios.post(
       `https://api.openai.com/v1/threads/${threadId}/messages`,
       { role: 'user', content: userMessage },
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       }
     );
 
-    // Inicia o processamento do assistente
+    // Executa o assistente
     const runResp = await axios.post(
       `https://api.openai.com/v1/threads/${threadId}/runs`,
       { assistant_id: assistantId },
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       }
     );
 
-    // Espera o processamento finalizar
+    // Aguarda finalização da execução
     let completed = false;
     let runData;
     while (!completed) {
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       if (runData.data.status === 'completed') completed = true;
     }
 
-    // Recupera a resposta gerada
+    // Busca a resposta gerada
     const msgResp = await axios.get(
       `https://api.openai.com/v1/threads/${threadId}/messages`,
       {
@@ -94,22 +94,22 @@ export default async function handler(req, res) {
     const lastMessage = messages.find((m) => m.role === 'assistant');
     const reply = lastMessage?.content[0]?.text?.value || 'Desculpe, não consegui responder no momento.';
 
-    // Envia a resposta para o WhatsApp via Twilio
+    // Envia a resposta pelo WhatsApp via Twilio
     await client.messages.create({
       from: ourNumber,
       to: userNumber,
       body: reply
     });
 
-    // 🔹 Registro na planilha Google Sheets
+    // Registra na planilha
     await registrarAtendimento({
       canal: 'WhatsApp',
       identificador: userNumber,
-      nome: '', // Podemos implementar reconhecimento do nome no futuro
+      nome: '', // Pode ser ajustado para extrair nome futuramente
       mensagemRecebida: userMessage,
       respostaEnviada: reply,
       threadId,
-      observacoes: '' // Livre para uso posterior
+      observacoes: ''
     });
 
     res.status(200).end();
