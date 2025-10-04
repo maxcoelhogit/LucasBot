@@ -1,11 +1,10 @@
 {
   "name": "lucasbot",
   "version": "1.0.0",
-  "description": "Assistente Virtual para múltiplos condomínios via WhatsApp",
-  "main": "api/whatsapp.js",
   "type": "module",
+  "main": "api/whatsapp.js",
   "scripts": {
-    "start": "vercel dev"
+    "start": "node api/whatsapp.js"
   },
   "engines": {
     "node": "18.x"
