@@ -1,35 +1,31 @@
 // utils/sheetLogger.js
+import axios from 'axios';
 
-export async function registrarAtendimento({ canal, identificador, nome, mensagemRecebida, respostaEnviada, threadId, observacoes = '' }) {
+export async function registrarAtendimento({ canal, identificador, nome, mensagemRecebida, respostaEnviada, threadId, observacoes }) {
+  const sheetId = process.env.PLANILHA_LUCASBOT_ID;
   const apiKey = process.env.GOOGLE_API_KEY;
-  const spreadsheetId = process.env.PLANILHA_LUCASBOT_ID;
 
-  if (!apiKey || !spreadsheetId) {
-    console.error('❌ Variáveis de ambiente ausentes');
-    return;
-  }
+  const data = [
+    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+    canal,
+    identificador,
+    nome,
+    mensagemRecebida,
+    respostaEnviada,
+    threadId,
+    observacoes
+  ];
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=RAW&key=${apiKey}`;
-  const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-
-  const data = {
-    values: [[timestamp, canal, identificador, nome, mensagemRecebida, respostaEnviada, threadId, observacoes]]
-  };
+  const range = 'A2:H2'; // Adiciona nova linha na aba padrão (Sheet1)
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=USER_ENTERED&key=${apiKey}`;
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json' }
+    await axios.post(url, {
+      values: [data]
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Erro ao registrar na planilha: ${errorText}`);
-    } else {
-      console.log('✅ Atendimento registrado');
-    }
-  } catch (err) {
-    console.error('❌ Erro inesperado ao salvar na planilha:', err.message);
+    console.log('✅ Atendimento registrado com sucesso.');
+  } catch (error) {
+    console.error('❌ Erro ao registrar na planilha:', error.response?.data || error.message);
+    throw error;
   }
 }
