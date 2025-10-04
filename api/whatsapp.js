@@ -1,6 +1,7 @@
 import axios from 'axios';
 import twilio from 'twilio';
 import { getThreadId, setThreadId } from '../utils/threadManager.js';
+import { registrarAtendimento } from '../utils/sheetLogger.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
   let threadId = getThreadId(userNumber);
 
   try {
-    // Cria thread se necessário
+    // Cria uma nova thread se ainda não existir
     if (!threadId) {
       const threadResp = await axios.post(
         'https://api.openai.com/v1/threads',
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
       }
     );
 
-    // Espera o run ser concluído
+    // Espera o processamento finalizar
     let completed = false;
     let runData;
     while (!completed) {
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
       if (runData.data.status === 'completed') completed = true;
     }
 
-    // Recupera a resposta do assistente
+    // Recupera a resposta gerada
     const msgResp = await axios.get(
       `https://api.openai.com/v1/threads/${threadId}/messages`,
       {
@@ -93,20 +94,29 @@ export default async function handler(req, res) {
     const lastMessage = messages.find((m) => m.role === 'assistant');
     const reply = lastMessage?.content[0]?.text?.value || 'Desculpe, não consegui responder no momento.';
 
-    // Envia a resposta de volta ao WhatsApp usando a API do Twilio
+    // Envia a resposta para o WhatsApp via Twilio
     await client.messages.create({
       from: ourNumber,
       to: userNumber,
       body: reply
     });
 
-    // Finaliza sem retorno de corpo
+    // 🔹 Registro na planilha Google Sheets
+    await registrarAtendimento({
+      canal: 'WhatsApp',
+      identificador: userNumber,
+      nome: '', // Podemos implementar reconhecimento do nome no futuro
+      mensagemRecebida: userMessage,
+      respostaEnviada: reply,
+      threadId,
+      observacoes: '' // Livre para uso posterior
+    });
+
     res.status(200).end();
 
   } catch (err) {
-    console.error('Erro no processamento:', err.response?.data || err.message);
+    console.error('❌ Erro no processamento:', err.response?.data || err.message);
 
-    // Tenta responder mesmo em caso de erro
     try {
       await client.messages.create({
         from: ourNumber,
@@ -114,7 +124,7 @@ export default async function handler(req, res) {
         body: 'Desculpe, tivemos um erro ao processar sua mensagem. Tente novamente mais tarde.'
       });
     } catch (sendErr) {
-      console.error('Falha ao enviar erro via Twilio:', sendErr.message);
+      console.error('❌ Falha ao enviar erro via Twilio:', sendErr.message);
     }
 
     res.status(500).end();
