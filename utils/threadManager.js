@@ -1,12 +1,9 @@
-const threadMap = {};
+const threadMap = new Map();
 
 export function getThreadId(userId) {
-  if (!threadMap[userId]) {
-    threadMap[userId] = null;
-  }
-  return threadMap[userId];
+  return threadMap.get(userId) || null;
 }
 
 export function setThreadId(userId, threadId) {
-  threadMap[userId] = threadId;
+  threadMap.set(userId, threadId);
 }
