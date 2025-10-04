@@ -1,51 +1,28 @@
-import { google } from 'googleapis';
+import axios from 'axios';
 
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+const spreadsheetId = process.env.PLANILHA_LUCASBOT_ID;
+const apiKey = process.env.GOOGLE_API_KEY;
 
-export async function registrarAtendimento({
-  canal,
-  identificador,
-  nome,
-  mensagemRecebida,
-  respostaEnviada,
-  threadId,
-  observacoes
-}) {
+export async function registrarAtendimento({ canal, identificador, nome, mensagemRecebida, respostaEnviada, threadId, observacoes }) {
   try {
-    const auth = new google.auth.JWT(
-      process.env.GOOGLE_CLIENT_EMAIL,
-      null,
-      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      SCOPES
-    );
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=RAW&key=${apiKey}`;
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const data = {
+      values: [[
+        new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        canal,
+        identificador,
+        nome || '',
+        mensagemRecebida,
+        respostaEnviada,
+        threadId,
+        observacoes || ''
+      ]]
+    };
 
-    const spreadsheetId = process.env.PLANILHA_LUCASBOT_ID;
-    const range = 'Historico!A:H';
-
-    const values = [[
-      new Date().toISOString(),
-      canal,
-      identificador,
-      nome,
-      mensagemRecebida,
-      respostaEnviada,
-      threadId,
-      observacoes
-    ]];
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values }
-    });
-
-    console.log('✅ Atendimento registrado com sucesso');
-
-  } catch (error) {
-    console.error('❌ Erro ao registrar na planilha:', error);
-    throw error;
+    await axios.post(url, data);
+    console.log('✅ Atendimento registrado na planilha!');
+  } catch (err) {
+    console.error('❌ Erro ao registrar na planilha:', err.response?.data || err.message);
   }
 }
