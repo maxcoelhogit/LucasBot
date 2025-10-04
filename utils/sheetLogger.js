@@ -1,42 +1,40 @@
-// utils/sheetLogger.js
+// 📁 utils/sheetLogger.js
+import { google } from 'googleapis';
 
-import axios from 'axios';
+// Autenticação com JWT usando variáveis de ambiente
+const auth = new google.auth.JWT(
+  process.env.GOOGLE_CLIENT_EMAIL,
+  null,
+  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  ['https://www.googleapis.com/auth/spreadsheets']
+);
 
-const apiKey = process.env.GOOGLE_API_KEY;
-const sheetId = process.env.PLANILHA_LUCASBOT_ID;
-const sheetName = 'Historico';
+const sheets = google.sheets({ version: 'v4', auth });
 
-export async function registrarAtendimento({
-  canal,
-  identificador,
-  nome,
-  mensagemRecebida,
-  respostaEnviada,
-  threadId,
-  observacoes = ''
+export async function registrarNaPlanilha({
+  spreadsheetId,
+  dados
 }) {
-  const timestamp = new Date().toISOString();
-
-  const linha = [
-    timestamp,
-    canal,
-    identificador,
-    nome,
-    mensagemRecebida,
-    respostaEnviada,
-    threadId,
-    observacoes
-  ];
-
-  const range = `${sheetName}!A1`; // Inserção dinâmica com append
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=USER_ENTERED&key=${apiKey}`;
-
   try {
-    await axios.post(url, {
-      values: [linha]
+    const valores = [[
+      new Date().toISOString(), // Timestamp
+      dados.canal || '',
+      dados.identificador || '',
+      dados.nome || '',
+      dados.mensagem || '',
+      dados.resposta || '',
+      dados.thread || '',
+      dados.observacoes || ''
+    ]];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Historico!A1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: valores }
     });
-    console.log('✅ Registro salvo na planilha com sucesso.');
-  } catch (err) {
-    console.error('❌ Erro ao registrar na planilha:', err.response?.data || err.message);
+  } catch (error) {
+    console.error('Erro ao registrar na planilha:', error);
+    throw error;
   }
 }
